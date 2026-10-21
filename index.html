@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Obras vigentes de MT</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+:root{--bg:#e7e6e2;--panel:#f6f5f2;--ink:#23272b;--mute:#677078;--line:#cfcdc6;--yel:#e8b21c;--ok:#2f8f5b;--mid:#c98a14;--bad:#c4432b;--bar:#d8d6cf;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d2023;--panel:#272b2f;--ink:#ecebe7;--mute:#9a9ea3;--line:#3a3f44;--bar:#3a3f44;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1d2023;--panel:#272b2f;--ink:#ecebe7;--mute:#9a9ea3;--line:#3a3f44;--bar:#3a3f44;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 Barlow,system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px 14px 40px}
+h1{font:700 34px/1 "Barlow Condensed",Impact,sans-serif;margin:6px 0 10px;letter-spacing:.2px}
+.stripe{height:4px;margin:0 0 16px;background:repeating-linear-gradient(90deg,var(--yel) 0 26px,transparent 26px 44px)}
+.sum{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.sum div{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.sum b{display:block;font:700 24px/1.1 "Barlow Condensed",sans-serif}
+.sum span{color:var(--mute);font-size:13px}
+.ctl{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.ctl input,.ctl select,.btn{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-height:42px;width:100%}
+.ctl input{grid-column:1/-1}
+.btn{cursor:pointer;font-weight:600;width:auto}
+:focus-visible{outline:2px solid var(--yel);outline-offset:2px}
+#mapbox{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:14px}
+#mapbox p{margin:2px 4px 6px;color:var(--mute);font-size:13px}
+svg{display:block;width:100%;height:auto;max-height:420px}
+.row{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--c,var(--line));border-radius:6px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.row.sel{outline:2px solid var(--yel)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.nm{font:700 20px/1.1 "Barlow Condensed",sans-serif}
+.val{font-weight:600}
+.who{color:var(--mute);font-size:13px;margin:2px 0 8px}
+.road{position:relative;height:12px;background:var(--bar);border-radius:3px}
+.fill{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:3px;opacity:.82}
+.tick{position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;background:var(--yel);border-radius:2px}
+.pay{height:3px;background:var(--mute);margin-top:3px;border-radius:2px}
+.nums{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin-top:6px;color:var(--mute)}
+.nums b{color:var(--ink)}
+.badge{font-weight:600;color:var(--c)}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:18px;color:var(--mute)}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin:0 0 12px}
+.leg i{display:inline-block;vertical-align:middle;margin-right:5px}
+@media(min-width:720px){.sum{grid-template-columns:repeat(4,1fr)}.ctl{grid-template-columns:2fr 1fr 1fr 1fr}.ctl input{grid-column:auto}}
+</style>
+</head>
+<body>
+<main>
+<h1>Obras vigentes de MT</h1>
+<div class="stripe"></div>
+<div id="app"></div>
+<input id="file" type="file" accept=".json,application/json" hidden>
+</main>
+<script>
+var data=[],sel=null,UPD=null,KEY="obras-mt-painel";
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+var fm=function(v){return v>=1e9?"R$ "+(v/1e9).toFixed(2).replace(".",",")+" bi":"R$ "+Math.round(v/1e6).toLocaleString("pt-BR")+" mi"};
+var fo=function(r){return r.ex-r.t};
+var cor=function(f){return f>=0?"var(--ok)":f>-25?"var(--mid)":"var(--bad)"};
+var sg=function(n){return(n>0?"+":n<0?"−":"")+Math.abs(Math.round(n))+" pp"};
+
+function shell(){
+  $("#app").innerHTML=
+  '<p class="leg" id="upd"></p><div class="sum" id="sum"></div>'+
+  '<div class="ctl">'+
+  '<input id="q" type="search" placeholder="Buscar contrato, empresa ou município" aria-label="Buscar">'+
+  '<select id="st" aria-label="Situação"></select>'+
+  '<select id="mv" aria-label="Valor mínimo"><option value="0">Qualquer valor</option><option value="10">Acima de R$ 10 mi</option><option value="50">Acima de R$ 50 mi</option><option value="100">Acima de R$ 100 mi</option></select>'+
+  '<select id="so" aria-label="Ordenar"><option value="late">Mais atrasadas</option><option value="early">Mais adiantadas</option><option value="val">Maior valor</option><option value="gap">Pago acima do executado</option></select>'+
+  '</div>'+
+  '<div class="leg"><span><i style="width:18px;height:8px;background:var(--ink);opacity:.82"></i>executado</span><span><i style="width:4px;height:14px;background:var(--yel)"></i>prazo decorrido</span><span><i style="width:18px;height:3px;background:var(--mute)"></i>pago</span></div>'+
+  '<div id="mapbox"><p>Localização das obras (cor = folga entre executado e prazo; tamanho = valor)</p><svg id="map" viewBox="0 0 400 340" role="img" aria-label="Mapa de pontos das obras"></svg></div>'+
+  '<div id="list"></div>'+
+  '<p><button class="btn" id="reload">Carregar outro painel.json</button></p>';
+  var sts=[];data.forEach(function(r){if(r.status&&sts.indexOf(r.status)<0)sts.push(r.status)});
+  $("#st").innerHTML='<option value="">Todas as situações</option>'+sts.map(function(s){return'<option>'+esc(s)+'</option>'}).join("");
+  ["q","st","mv","so"].forEach(function(id){$("#"+id).addEventListener("input",render)});
+  $("#reload").onclick=function(){$("#file").click()};
+  $("#list").addEventListener("click",function(e){var a=e.target.closest(".row");if(a)pick(a.dataset.n,false)});
+  $("#map").addEventListener("click",function(e){var c=e.target.closest("circle");if(c)pick(c.dataset.n,true)});
+}
+
+function empty(){
+  $("#app").innerHTML='<div class="empty"><p><b>Nenhum dado carregado.</b> Gere o arquivo painel.json no Termux e escolha-o aqui. O arquivo fica só no seu aparelho.</p><button class="btn" id="pickf">Escolher painel.json</button></div>';
+  $("#pickf").onclick=function(){$("#file").click()};
+}
+
+function setData(arr){
+  if(arr&&!Array.isArray(arr)&&arr.items){UPD=arr.updated||null;arr=arr.items}
+  data=arr.filter(function(r){return r&&r.name}).map(function(r){r.value=+r.value||0;r.t=(r.ini&&r.fim)?Math.round(Math.max(0,Math.min(100,(Date.now()-r.ini)/(r.fim-r.ini)*100))):(+r.t||0);r.ex=+r.ex||0;r.pg=+r.pg||0;return r});
+  if(!data.length){empty();return}
+  shell();render();
+  if(UPD)$("#upd").textContent="Dados atualizados em "+new Date(UPD).toLocaleString("pt-BR");
+}
+
+function render(){
+  var q=$("#q").value.toLowerCase(),st=$("#st").value,mv=(+$("#mv").value)*1e6,so=$("#so").value;
+  var L=data.filter(function(r){return(!st||r.status===st)&&r.value>=mv&&(r.name+" "+r.company+" "+r.address).toLowerCase().indexOf(q)>=0});
+  var S={late:function(a,b){return fo(a)-fo(b)},early:function(a,b){return fo(b)-fo(a)},val:function(a,b){return b.value-a.value},gap:function(a,b){return(b.pg-b.ex)-(a.pg-a.ex)}}[so];
+  L.sort(S);
+  var tot=L.reduce(function(s,r){return s+r.value},0);
+  var late=L.filter(function(r){return fo(r)<-25});
+  var lv=late.reduce(function(s,r){return s+r.value},0);
+  var pw=tot?L.reduce(function(s,r){return s+fo(r)*r.value},0)/tot:0;
+  $("#sum").innerHTML=
+   '<div><b>'+L.length+'</b><span>contratos no filtro</span></div>'+
+   '<div><b>'+fm(tot)+'</b><span>valor contratado</span></div>'+
+   '<div><b>'+late.length+'</b><span>com folga abaixo de −25 pp</span></div>'+
+   '<div><b>'+sg(pw)+'</b><span>folga média ponderada ('+fm(lv)+' em atraso)</span></div>';
+  $("#list").innerHTML=L.length?L.map(row).join(""):'<div class="empty">Nenhum contrato com esses filtros. Limpe a busca ou reduza o valor mínimo.</div>';
+  draw(L);
+}
+
+function row(r){
+  var f=fo(r),c=cor(f),gap=r.pg-r.ex;
+  return'<article class="row'+(r.name===sel?" sel":"")+'" data-n="'+esc(r.name)+'" style="--c:'+c+'">'+
+  '<div class="top"><span class="nm">'+esc(r.name)+'</span><span class="val">'+fm(r.value)+'</span></div>'+
+  '<div class="who">'+esc(r.company)+'<br>'+esc(r.address)+'</div>'+
+  '<div class="road"><i class="fill" style="width:'+Math.min(100,r.ex)+'%"></i><i class="tick" style="left:'+Math.min(100,r.t)+'%"></i></div>'+
+  '<div class="pay" style="width:'+Math.min(100,r.pg)+'%"></div>'+
+  '<div class="nums"><span>Executado <b>'+r.ex+'%</b></span><span>Prazo <b>'+r.t+'%</b></span><span>Pago <b>'+r.pg+'%</b></span><span class="badge">Folga '+sg(f)+'</span>'+(gap>15?'<span>Pago '+sg(gap)+' acima do executado</span>':'')+'</div></article>';
+}
+
+function draw(L){
+  var P=L.filter(function(r){return r.lat!=null&&r.lng!=null&&isFinite(r.lat)&&isFinite(r.lng)});
+  var svg=$("#map");
+  if(!P.length){svg.innerHTML='<text x="200" y="170" text-anchor="middle" fill="var(--mute)" font-size="14">Sem coordenadas nos contratos filtrados</text>';return}
+  var la=P.map(function(r){return r.lat}),lo=P.map(function(r){return r.lng});
+  var a0=Math.min.apply(0,la),a1=Math.max.apply(0,la),o0=Math.min.apply(0,lo),o1=Math.max.apply(0,lo);
+  var W=360,H=300,k=Math.min(W/Math.max(o1-o0,.01),H/Math.max(a1-a0,.01));
+  var ox=20+(W-(o1-o0)*k)/2,oy=20+(H-(a1-a0)*k)/2;
+  var vmax=Math.max.apply(0,P.map(function(r){return r.value}))||1;
+  var h='<rect x="1" y="1" width="398" height="338" fill="none" stroke="var(--line)"/>';
+  P.slice().sort(function(a,b){return b.value-a.value}).forEach(function(r){
+    var x=ox+(r.lng-o0)*k,y=oy+(a1-r.lat)*k,rad=2.5+4.5*Math.sqrt(r.value/vmax);
+    h+='<circle data-n="'+esc(r.name)+'" cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+rad.toFixed(1)+'" fill="'+cor(fo(r))+'" fill-opacity=".78" stroke="'+(r.name===sel?"var(--yel)":"var(--panel)")+'" stroke-width="'+(r.name===sel?3:1)+'"><title>'+esc(r.name+" — "+fm(r.value))+'</title></circle>';
+  });
+  svg.innerHTML=h;
+}
+
+function pick(n,scroll){
+  sel=(sel===n&&!scroll)?null:n;
+  document.querySelectorAll(".row").forEach(function(e){e.classList.toggle("sel",e.dataset.n===sel)});
+  draw(visible());
+  if(scroll&&sel){var el=document.querySelector('.row[data-n="'+sel.replace(/"/g,'\\"')+'"]');if(el)el.scrollIntoView({behavior:"smooth",block:"center"})}
+}
+function visible(){
+  var q=$("#q").value.toLowerCase(),st=$("#st").value,mv=(+$("#mv").value)*1e6;
+  return data.filter(function(r){return(!st||r.status===st)&&r.value>=mv&&(r.name+" "+r.company+" "+r.address).toLowerCase().indexOf(q)>=0});
+}
+
+$("#file").addEventListener("change",function(e){
+  var f=e.target.files[0];if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{var arr=JSON.parse(rd.result);if(!Array.isArray(arr)&&!(arr&&arr.items))throw 0;
+      try{localStorage.setItem(KEY,JSON.stringify(arr))}catch(x){}
+      setData(arr)}
+    catch(x){$("#app").insertAdjacentHTML("afterbegin",'<div class="empty">Não foi possível ler este arquivo. Use o painel.json gerado pelo script do Termux.</div>')}
+  };
+  rd.readAsText(f);e.target.value="";
+});
+
+(function(){
+  function fb(){var s=null;try{s=localStorage.getItem(KEY)}catch(x){}
+    if(s){try{setData(JSON.parse(s));return}catch(x){}}
+    empty();}
+  fetch("painel.json?"+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(setData).catch(fb);
+})();
+</script>
+</body>
+</html>
