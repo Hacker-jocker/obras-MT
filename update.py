@@ -31,7 +31,7 @@ for c in vig:
     out.append(dict(name=d["name"],status=d.get("status"),address=c.get("address",""),
         company=(d.get("companies") or [""])[0],value=d.get("contractTotalValue") or 0,
         ini=p["initialDate"],fim=p["finalDate"],ex=round(d.get("peExecutatoComReajustes") or d.get("peExecutedAmount") or 0),
-        pg=round(d.get("pePaidAmount") or 0),lat=lat,lng=lng))
+        pg=round(d.get("pePaidAmount") or 0),orig=d.get("originalValue") or 0,add=d.get("addedValue") or 0,apost=d.get("vlApostila") or 0,lat=lat,lng=lng))
     time.sleep(0.2)
 if len(out)<50: sys.exit("Coleta incompleta; mantendo o painel.json anterior.")
 json.dump({"updated":datetime.datetime.utcnow().isoformat()+"Z","items":out},open("painel.json","w"),ensure_ascii=False)
