@@ -17,5 +17,5 @@ jobs:
       - run: |
           git config user.name "painel-bot"
           git config user.email "painel-bot@users.noreply.github.com"
-          git add painel.json
+          git add painel.json historico
           git diff --cached --quiet || git commit -m "Atualiza painel" && git push
