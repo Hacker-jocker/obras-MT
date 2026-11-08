@@ -49,4 +49,6 @@ json.dump({"updated":now.isoformat().replace("+00:00","Z"),"items":out,"others":
 os.makedirs("historico",exist_ok=True)
 h={r["name"]:[r["ex"],r["pg"],round(r["value"])] for r in out}
 json.dump(h,open("historico/%s.json"%now.strftime("%Y-%m-%d"),"w"),ensure_ascii=False)
+idx=sorted(f[:-5] for f in os.listdir("historico") if f.endswith(".json") and f!="indice.json")
+json.dump(idx,open("historico/indice.json","w"))
 print("OK",len(out),"vigentes;",len(others),"outros")

@@ -1,0 +1,127 @@
+@@@ARQ index.html
+@@@OLD
+@media(min-width:720px){.sum{
+@@@NEW
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;padding:0 4px}
+.fl{display:inline-block;margin-top:6px;font-size:13px;font-weight:600}
+#gf{margin:0 0 10px;font-size:13px;color:var(--mute)}
+#gf .btn{min-height:30px;padding:4px 10px;margin-left:8px}
+@media(min-width:720px){.sum{
+@@@END
+@@@ARQ index.html
+@@@OLD
+UPD=null,KEY=
+@@@NEW
+UPD=null,GF=null,OTH=[],HIST={},HD=[],KEY=
+@@@END
+@@@ARQ index.html
+@@@OLD
+'<div class="leg"><span><i style="width:18px;height:8px
+@@@NEW
+'<div class="ctl"><select id="vw" aria-label="Visão"><option value="c">Visão: contratos</option><option value="m">Visão: por município</option><option value="e">Visão: por empresa</option></select><label class="chk"><input type="checkbox" id="dd" checked> Contar duplicados uma vez</label></div><p id="gf"></p>'+
+  '<div class="leg"><span><i style="width:18px;height:8px
+@@@END
+@@@ARQ index.html
+@@@OLD
+["q","st","mv","so"].forEach(
+@@@NEW
+["q","st","mv","so","vw","dd"].forEach(
+@@@END
+@@@ARQ index.html
+@@@OLD
+if(a)pick(a.dataset.n,false)
+@@@NEW
+if(a&&a.dataset.g){GF={k:$("#vw").value,v:a.dataset.g};$("#vw").value="c";render();window.scrollTo(0,0)}else if(a)pick(a.dataset.n,false)
+@@@END
+@@@ARQ index.html
+@@@OLD
+UPD=arr.updated||null;arr=arr.items
+@@@NEW
+UPD=arr.updated||null;OTH=arr.others||[];arr=arr.items
+@@@END
+@@@ARQ index.html
+@@@OLD
+var L=data.filter(function(r){return(!st
+@@@NEW
+var L=base2().filter(function(r){return inGF(r)&&(!st
+@@@END
+@@@ARQ index.html
+@@@OLD
+return data.filter(function(r){return(!st
+@@@NEW
+return base2().filter(function(r){return inGF(r)&&(!st
+@@@END
+@@@ARQ index.html
+@@@OLD
+$("#list").innerHTML=L.length?L.map(row).join(""):
+@@@NEW
+$("#gf").innerHTML=GF?'Filtrando por <b>'+esc(GF.v)+'</b><button class="btn" id="gx">Limpar</button>':"";
+  if($("#gx"))$("#gx").onclick=function(){GF=null;render()};
+  $("#list").innerHTML=$("#vw").value!=="c"?groups(L):L.length?L.map(row).join(""):
+@@@END
+@@@ARQ index.html
+@@@OLD
+(gap>15?'<span>Pago '+sg(gap)+' acima do executado</span>':'')+'</div></article>';
+@@@NEW
+(gap>15?'<span>Pago '+sg(gap)+' acima do executado</span>':'')+'</div>'+spark(r)+'<a class="fl" href="fichas.html#'+encodeURIComponent(r.name)+'">Abrir ficha →</a></article>';
+@@@END
+@@@ARQ index.html
+@@@OLD
+function pick(n,scroll){
+@@@NEW
+function mun(r){return String(r.address||"").split(",").map(function(s){return s.trim()}).filter(Boolean)}
+function bk(r){return r.name.replace(/\/SIN(FRA)?$/i,"")+"|"+r.company}
+function base2(){
+  if(!$("#dd")||!$("#dd").checked)return data;
+  var best={};
+  data.forEach(function(r){var k=bk(r);if(!best[k]||r.value>best[k].value)best[k]=r});
+  return data.filter(function(r){return best[bk(r)]===r});
+}
+function inGF(r){return!GF||(GF.k==="m"?mun(r).indexOf(GF.v)>=0:r.company===GF.v)}
+function groups(L){
+  var k=$("#vw").value,G={},O={};
+  L.forEach(function(r){(k==="m"?mun(r):[r.company]).forEach(function(g){
+    var o=G[g]||(G[g]={n:0,v:0,fv:0,at:0}),f=fo(r);o.n++;o.v+=r.value;o.fv+=f*r.value;if(f<-25)o.at++})});
+  OTH.forEach(function(c){(k==="m"?String(c.address||"").split(",").map(function(s){return s.trim()}):[c.company]).forEach(function(g){
+    if(!g)return;var o=O[g]||(O[g]={n:0,v:0});o.n++;o.v+=(+c.value||0)})});
+  var A=Object.keys(G).map(function(g){var o=G[g];return{g:g,n:o.n,v:o.v,f:o.v?o.fv/o.v:0,at:o.at,o:O[g]||{n:0,v:0}}}).sort(function(a,b){return a.f-b.f});
+  if(!A.length)return'<div class="empty">Nada neste filtro.</div>';
+  return A.map(function(a){return'<article class="row" data-g="'+esc(a.g)+'" style="--c:'+cor(a.f)+'"><div class="top"><span class="nm">'+esc(a.g)+'</span><span class="val">'+fm(a.v)+'</span></div><div class="nums"><span><b>'+a.n+'</b> vigentes</span><span class="badge">Folga média '+sg(a.f)+'</span><span><b>'+a.at+'</b> abaixo de −25 pp</span><span>'+a.o.n+' encerrados ou rescindidos ('+fm(a.o.v)+')</span></div></article>'}).join("");
+}
+function spark(r){
+  var p=HD.map(function(d){var h=HIST[d];return h&&h[r.name]?h[r.name][0]:null}).filter(function(v){return v!=null});
+  if(p.length<2)return"";
+  var w=100,h=22,mx=Math.max(100,Math.max.apply(0,p)),pts=p.map(function(v,i){return(i*w/(p.length-1)).toFixed(1)+","+(h-v/mx*h).toFixed(1)}).join(" ");
+  return'<div class="nums"><span>Evolução ('+p.length+' dias)</span><svg viewBox="0 0 100 22" style="width:100px;height:22px" aria-hidden="true"><polyline points="'+pts+'" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg><span><b>'+p[0]+'%</b> → <b>'+p[p.length-1]+'%</b></span></div>';
+}
+function loadHist(){
+  fetch("historico/indice.json?"+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(ix){
+    HD=ix.slice(-60);
+    return Promise.all(HD.map(function(d){return fetch("historico/"+d+".json").then(function(r){return r.ok?r.json():null}).then(function(h){HIST[d]=h})}));
+  }).then(function(){render()}).catch(function(){});
+}
+function pick(n,scroll){
+@@@END
+@@@ARQ index.html
+@@@OLD
+.then(setData).catch(fb);
+@@@NEW
+.then(function(j){setData(j);loadHist()}).catch(fb);
+@@@END
+@@@ARQ fichas.html
+@@@OLD
+r.fl=flags(r,dups);return r});
+  render();
+@@@NEW
+r.fl=flags(r,dups);return r});
+  var h=decodeURIComponent(location.hash.slice(1));if(h)$("#q").value=h;
+  render();if(h){var d=document.querySelector("details");if(d)d.open=true}
+@@@END
+@@@ARQ update.py
+@@@OLD
+print("OK",len(out),"vigentes;",len(others),"outros")
+@@@NEW
+idx=sorted(f[:-5] for f in os.listdir("historico") if f.endswith(".json") and f!="indice.json")
+json.dump(idx,open("historico/indice.json","w"))
+print("OK",len(out),"vigentes;",len(others),"outros")
+@@@END

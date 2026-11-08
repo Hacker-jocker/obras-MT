@@ -159,7 +159,8 @@ fetch("painel.json?"+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json
     r.value=+r.value||0;r.ex=+r.ex||0;r.pg=+r.pg||0;r.orig=+r.orig||0;r.add=+r.add||0;r.apost=+r.apost||0;
     r.t=(r.ini&&r.fim)?Math.round(Math.max(0,Math.min(100,(Date.now()-r.ini)/(r.fim-r.ini)*100))):(+r.t||0);
     r.fl=flags(r,dups);return r});
-  render();
+  var h=decodeURIComponent(location.hash.slice(1));if(h)$("#q").value=h;
+  render();if(h){var d=document.querySelector("details");if(d)d.open=true}
 }).catch(function(){$("#list").innerHTML='<div class="empty">Não foi possível carregar o painel.json.</div>'});
 </script>
 </body>

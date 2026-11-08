@@ -43,6 +43,10 @@ svg{display:block;width:100%;height:auto;max-height:420px}
 .empty{background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:18px;color:var(--mute)}
 .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin:0 0 12px}
 .leg i{display:inline-block;vertical-align:middle;margin-right:5px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;padding:0 4px}
+.fl{display:inline-block;margin-top:6px;font-size:13px;font-weight:600}
+#gf{margin:0 0 10px;font-size:13px;color:var(--mute)}
+#gf .btn{min-height:30px;padding:4px 10px;margin-left:8px}
 @media(min-width:720px){.sum{grid-template-columns:repeat(4,1fr)}.ctl{grid-template-columns:2fr 1fr 1fr 1fr}.ctl input{grid-column:auto}}
 </style>
 </head>
@@ -54,7 +58,7 @@ svg{display:block;width:100%;height:auto;max-height:420px}
 <input id="file" type="file" accept=".json,application/json" hidden>
 </main>
 <script>
-var data=[],sel=null,UPD=null,KEY="obras-mt-painel";
+var data=[],sel=null,UPD=null,GF=null,OTH=[],HIST={},HD=[],KEY="obras-mt-painel";
 var $=function(s){return document.querySelector(s)};
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 var fm=function(v){return v>=1e9?"R$ "+(v/1e9).toFixed(2).replace(".",",")+" bi":"R$ "+Math.round(v/1e6).toLocaleString("pt-BR")+" mi"};
@@ -71,15 +75,16 @@ function shell(){
   '<select id="mv" aria-label="Valor mínimo"><option value="0">Qualquer valor</option><option value="10">Acima de R$ 10 mi</option><option value="50">Acima de R$ 50 mi</option><option value="100">Acima de R$ 100 mi</option></select>'+
   '<select id="so" aria-label="Ordenar"><option value="late">Mais atrasadas</option><option value="early">Mais adiantadas</option><option value="val">Maior valor</option><option value="gap">Pago acima do executado</option></select>'+
   '</div>'+
+  '<div class="ctl"><select id="vw" aria-label="Visão"><option value="c">Visão: contratos</option><option value="m">Visão: por município</option><option value="e">Visão: por empresa</option></select><label class="chk"><input type="checkbox" id="dd" checked> Contar duplicados uma vez</label></div><p id="gf"></p>'+
   '<div class="leg"><span><i style="width:18px;height:8px;background:var(--ink);opacity:.82"></i>executado</span><span><i style="width:4px;height:14px;background:var(--yel)"></i>prazo decorrido</span><span><i style="width:18px;height:3px;background:var(--mute)"></i>pago</span></div>'+
   '<div id="mapbox"><p>Localização das obras (cor = folga entre executado e prazo; tamanho = valor)</p><svg id="map" viewBox="0 0 400 340" role="img" aria-label="Mapa de pontos das obras"></svg></div>'+
   '<div id="list"></div>'+
   '<p><button class="btn" id="reload">Carregar outro painel.json</button></p>';
   var sts=[];data.forEach(function(r){if(r.status&&sts.indexOf(r.status)<0)sts.push(r.status)});
   $("#st").innerHTML='<option value="">Todas as situações</option>'+sts.map(function(s){return'<option>'+esc(s)+'</option>'}).join("");
-  ["q","st","mv","so"].forEach(function(id){$("#"+id).addEventListener("input",render)});
+  ["q","st","mv","so","vw","dd"].forEach(function(id){$("#"+id).addEventListener("input",render)});
   $("#reload").onclick=function(){$("#file").click()};
-  $("#list").addEventListener("click",function(e){var a=e.target.closest(".row");if(a)pick(a.dataset.n,false)});
+  $("#list").addEventListener("click",function(e){var a=e.target.closest(".row");if(a&&a.dataset.g){GF={k:$("#vw").value,v:a.dataset.g};$("#vw").value="c";render();window.scrollTo(0,0)}else if(a)pick(a.dataset.n,false)});
   $("#map").addEventListener("click",function(e){var c=e.target.closest("circle");if(c)pick(c.dataset.n,true)});
 }
 
@@ -89,7 +94,7 @@ function empty(){
 }
 
 function setData(arr){
-  if(arr&&!Array.isArray(arr)&&arr.items){UPD=arr.updated||null;arr=arr.items}
+  if(arr&&!Array.isArray(arr)&&arr.items){UPD=arr.updated||null;OTH=arr.others||[];arr=arr.items}
   data=arr.filter(function(r){return r&&r.name}).map(function(r){r.value=+r.value||0;r.t=(r.ini&&r.fim)?Math.round(Math.max(0,Math.min(100,(Date.now()-r.ini)/(r.fim-r.ini)*100))):(+r.t||0);r.ex=+r.ex||0;r.pg=+r.pg||0;return r});
   if(!data.length){empty();return}
   shell();render();
@@ -98,7 +103,7 @@ function setData(arr){
 
 function render(){
   var q=$("#q").value.toLowerCase(),st=$("#st").value,mv=(+$("#mv").value)*1e6,so=$("#so").value;
-  var L=data.filter(function(r){return(!st||r.status===st)&&r.value>=mv&&(r.name+" "+r.company+" "+r.address).toLowerCase().indexOf(q)>=0});
+  var L=base2().filter(function(r){return inGF(r)&&(!st||r.status===st)&&r.value>=mv&&(r.name+" "+r.company+" "+r.address).toLowerCase().indexOf(q)>=0});
   var S={late:function(a,b){return fo(a)-fo(b)},early:function(a,b){return fo(b)-fo(a)},val:function(a,b){return b.value-a.value},gap:function(a,b){return(b.pg-b.ex)-(a.pg-a.ex)}}[so];
   L.sort(S);
   var tot=L.reduce(function(s,r){return s+r.value},0);
@@ -110,7 +115,9 @@ function render(){
    '<div><b>'+fm(tot)+'</b><span>valor contratado</span></div>'+
    '<div><b>'+late.length+'</b><span>com folga abaixo de −25 pp</span></div>'+
    '<div><b>'+sg(pw)+'</b><span>folga média ponderada ('+fm(lv)+' em atraso)</span></div>';
-  $("#list").innerHTML=L.length?L.map(row).join(""):'<div class="empty">Nenhum contrato com esses filtros. Limpe a busca ou reduza o valor mínimo.</div>';
+  $("#gf").innerHTML=GF?'Filtrando por <b>'+esc(GF.v)+'</b><button class="btn" id="gx">Limpar</button>':"";
+  if($("#gx"))$("#gx").onclick=function(){GF=null;render()};
+  $("#list").innerHTML=$("#vw").value!=="c"?groups(L):L.length?L.map(row).join(""):'<div class="empty">Nenhum contrato com esses filtros. Limpe a busca ou reduza o valor mínimo.</div>';
   draw(L);
 }
 
@@ -121,7 +128,7 @@ function row(r){
   '<div class="who">'+esc(r.company)+'<br>'+esc(r.address)+'</div>'+
   '<div class="road"><i class="fill" style="width:'+Math.min(100,r.ex)+'%"></i><i class="tick" style="left:'+Math.min(100,r.t)+'%"></i></div>'+
   '<div class="pay" style="width:'+Math.min(100,r.pg)+'%"></div>'+
-  '<div class="nums"><span>Executado <b>'+r.ex+'%</b></span><span>Prazo <b>'+r.t+'%</b></span><span>Pago <b>'+r.pg+'%</b></span><span class="badge">Folga '+sg(f)+'</span>'+(gap>15?'<span>Pago '+sg(gap)+' acima do executado</span>':'')+'</div></article>';
+  '<div class="nums"><span>Executado <b>'+r.ex+'%</b></span><span>Prazo <b>'+r.t+'%</b></span><span>Pago <b>'+r.pg+'%</b></span><span class="badge">Folga '+sg(f)+'</span>'+(gap>15?'<span>Pago '+sg(gap)+' acima do executado</span>':'')+'</div>'+spark(r)+'<a class="fl" href="fichas.html#'+encodeURIComponent(r.name)+'">Abrir ficha →</a></article>';
 }
 
 function draw(L){
@@ -141,6 +148,37 @@ function draw(L){
   svg.innerHTML=h;
 }
 
+function mun(r){return String(r.address||"").split(",").map(function(s){return s.trim()}).filter(Boolean)}
+function bk(r){return r.name.replace(/\/SIN(FRA)?$/i,"")+"|"+r.company}
+function base2(){
+  if(!$("#dd")||!$("#dd").checked)return data;
+  var best={};
+  data.forEach(function(r){var k=bk(r);if(!best[k]||r.value>best[k].value)best[k]=r});
+  return data.filter(function(r){return best[bk(r)]===r});
+}
+function inGF(r){return!GF||(GF.k==="m"?mun(r).indexOf(GF.v)>=0:r.company===GF.v)}
+function groups(L){
+  var k=$("#vw").value,G={},O={};
+  L.forEach(function(r){(k==="m"?mun(r):[r.company]).forEach(function(g){
+    var o=G[g]||(G[g]={n:0,v:0,fv:0,at:0}),f=fo(r);o.n++;o.v+=r.value;o.fv+=f*r.value;if(f<-25)o.at++})});
+  OTH.forEach(function(c){(k==="m"?String(c.address||"").split(",").map(function(s){return s.trim()}):[c.company]).forEach(function(g){
+    if(!g)return;var o=O[g]||(O[g]={n:0,v:0});o.n++;o.v+=(+c.value||0)})});
+  var A=Object.keys(G).map(function(g){var o=G[g];return{g:g,n:o.n,v:o.v,f:o.v?o.fv/o.v:0,at:o.at,o:O[g]||{n:0,v:0}}}).sort(function(a,b){return a.f-b.f});
+  if(!A.length)return'<div class="empty">Nada neste filtro.</div>';
+  return A.map(function(a){return'<article class="row" data-g="'+esc(a.g)+'" style="--c:'+cor(a.f)+'"><div class="top"><span class="nm">'+esc(a.g)+'</span><span class="val">'+fm(a.v)+'</span></div><div class="nums"><span><b>'+a.n+'</b> vigentes</span><span class="badge">Folga média '+sg(a.f)+'</span><span><b>'+a.at+'</b> abaixo de −25 pp</span><span>'+a.o.n+' encerrados ou rescindidos ('+fm(a.o.v)+')</span></div></article>'}).join("");
+}
+function spark(r){
+  var p=HD.map(function(d){var h=HIST[d];return h&&h[r.name]?h[r.name][0]:null}).filter(function(v){return v!=null});
+  if(p.length<2)return"";
+  var w=100,h=22,mx=Math.max(100,Math.max.apply(0,p)),pts=p.map(function(v,i){return(i*w/(p.length-1)).toFixed(1)+","+(h-v/mx*h).toFixed(1)}).join(" ");
+  return'<div class="nums"><span>Evolução ('+p.length+' dias)</span><svg viewBox="0 0 100 22" style="width:100px;height:22px" aria-hidden="true"><polyline points="'+pts+'" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg><span><b>'+p[0]+'%</b> → <b>'+p[p.length-1]+'%</b></span></div>';
+}
+function loadHist(){
+  fetch("historico/indice.json?"+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(ix){
+    HD=ix.slice(-60);
+    return Promise.all(HD.map(function(d){return fetch("historico/"+d+".json").then(function(r){return r.ok?r.json():null}).then(function(h){HIST[d]=h})}));
+  }).then(function(){render()}).catch(function(){});
+}
 function pick(n,scroll){
   sel=(sel===n&&!scroll)?null:n;
   document.querySelectorAll(".row").forEach(function(e){e.classList.toggle("sel",e.dataset.n===sel)});
@@ -149,7 +187,7 @@ function pick(n,scroll){
 }
 function visible(){
   var q=$("#q").value.toLowerCase(),st=$("#st").value,mv=(+$("#mv").value)*1e6;
-  return data.filter(function(r){return(!st||r.status===st)&&r.value>=mv&&(r.name+" "+r.company+" "+r.address).toLowerCase().indexOf(q)>=0});
+  return base2().filter(function(r){return inGF(r)&&(!st||r.status===st)&&r.value>=mv&&(r.name+" "+r.company+" "+r.address).toLowerCase().indexOf(q)>=0});
 }
 
 $("#file").addEventListener("change",function(e){
@@ -168,7 +206,7 @@ $("#file").addEventListener("change",function(e){
   function fb(){var s=null;try{s=localStorage.getItem(KEY)}catch(x){}
     if(s){try{setData(JSON.parse(s));return}catch(x){}}
     empty();}
-  fetch("painel.json?"+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(setData).catch(fb);
+  fetch("painel.json?"+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){setData(j);loadHist()}).catch(fb);
 })();
 </script>
 </body>
